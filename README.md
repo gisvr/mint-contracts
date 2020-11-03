@@ -1,4 +1,4 @@
-# mint 
+## mint 
 
 mint token
 
@@ -6,6 +6,11 @@ mint token
 openzeppelin init
 ```
 
+networks.js
+https://docs.openzeppelin.com/cli/2.8/truffle
+
+create2
+https://ethfans.org/posts/getting-the-most-out-of-create2
 
 init
 Nothing to compile, all contracts are up to date.
