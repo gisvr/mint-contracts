@@ -40,10 +40,10 @@ contract FundingManager is Ownable {
     function addFunding(string memory _name, address _addr, uint256 _ratio) public onlyOwner {
 
         fundingHolders.push(FundingHolderInfo({
-        name : _name,
-        addr : _addr,
-        ratio : _ratio
-        }));
+            name : _name,
+            addr : _addr,
+            ratio : _ratio
+            }));
 
     }
 
@@ -76,6 +76,7 @@ contract FundingManager is Ownable {
 
     }
 
-    receive() external payable {
+    function receive() external payable {
+
     }
 }

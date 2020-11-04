@@ -3,7 +3,7 @@
 mint token
 
 ```js
-openzeppelin init
+oz init
 ```
 
 networks.js
@@ -22,10 +22,11 @@ Nothing to compile, all contracts are up to date.
 ? _piggyPerBlock: uint256: 1
 ? _startBlock: uint256: 2
 ? _enableClaimBlock: uint256: 3
-? _reduceIntervalBlock: uint256: 4
-? _reduceRate: uint256: 10
-? _devMiningRate: uint256: 20
+? _reduceIntervalBlock: uint256: 1
+? _reduceRate: uint256: 20
+? _devMiningRate: uint256: 10
 ✓ Deployed instance of PiggyBreeder
-0xe78A0F7E598Cc8b0Bb87894B0F60dD2a88d6a8Ab
+0x5b1869D9A4C187F2EAa108f3062412ecf0526b24
+
 
 
