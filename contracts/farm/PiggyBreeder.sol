@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.6.12;
 
+import "@nomiclabs/buidler/console.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/EnumerableSet.sol";
@@ -357,20 +358,20 @@ contract PiggyBreeder is Ownable {
 
         // add poolInfo
         poolInfo.push(PoolInfo({
-        lpToken : _lpToken,
-        allocPoint : _allocPoint,
-        lastRewardBlock : lastRewardBlock,
-        accPiggyPerShare : 0,
-        totalDeposit : 0,
-        migrator : _migrator
-        }));
+            lpToken : _lpToken,
+            allocPoint : _allocPoint,
+            lastRewardBlock : lastRewardBlock,
+            accPiggyPerShare : 0,
+            totalDeposit : 0,
+            migrator : _migrator
+            }));
     }
 
     // Stake LP tokens to PiggyBreeder for WPC allocation.
     function stake(uint256 _pid, uint256 _amount) public {
-
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
+        console.log("stake");
 
         //update poolInfo by pid
         updatePool(_pid);

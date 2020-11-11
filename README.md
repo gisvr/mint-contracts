@@ -13,20 +13,22 @@ create2
 https://ethfans.org/posts/getting-the-most-out-of-create2
 
 init
-Nothing to compile, all contracts are up to date.
 ? Choose the kind of deployment regular
 ? Pick a network development
 ? Pick a contract to deploy PiggyBreeder
-? _piggy: address: 0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1
-? _devAddr: address: 0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1
+? _piggy: address: 0xB0c440ba36076DA44593547F491019949F23A7Ad
+? _devAddr: address: 0xc783df8a850f42e7F7e57013759C285caa701eB6
 ? _piggyPerBlock: uint256: 1
-? _startBlock: uint256: 2
-? _enableClaimBlock: uint256: 3
+? _startBlock: uint256: 1
+? _enableClaimBlock: uint256: 10
 ? _reduceIntervalBlock: uint256: 1
-? _reduceRate: uint256: 20
-? _devMiningRate: uint256: 10
+? _reduceRate: uint256: 10
+? _devMiningRate: uint256: 1
 ✓ Deployed instance of PiggyBreeder
-0x5b1869D9A4C187F2EAa108f3062412ecf0526b24
+0xb376Fe7C7E4d646A9462494461313Ff7928A55AD
 
+
+
+wpc 0xB0c440ba36076DA44593547F491019949F23A7Ad
 
 

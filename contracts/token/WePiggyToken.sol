@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.6.12;
 
-
+import "@nomiclabs/buidler/console.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
@@ -22,7 +22,7 @@ contract WePiggyToken is ERC20, AccessControl {
 
     /// @notice Creates `_amount` token to `_to`.Must only be called by the minter role.
     function mint(address _to, uint256 _amount) public {
-
+        console.log("MINTER_ROLE",msg.sender);
         // Check that the calling account has the minter role
         require(hasRole(MINTER_ROLE, msg.sender), "Caller is not a minter");
 

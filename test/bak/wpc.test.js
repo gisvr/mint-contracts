@@ -36,7 +36,7 @@ describe('ERC20', async () => {
 
     it('reverts when transferring tokens to the zero address', async function () {
         // Conditions that trigger a require statement can be precisely tested
-        // this.erc20.transfer(constants.ZERO_ADDRESS, this.value, {from: sender})
+        this.erc20.transfer(constants.ZERO_ADDRESS, this.value, {from: sender})
     });
 
     it('reverts tokens to the zero address', async function () {
