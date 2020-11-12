@@ -2,15 +2,15 @@
 pragma solidity 0.6.12;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "../token/WePiggyToken.sol";
+import "../token/MintToken.sol";
 
 // funding holder. Will call by gnosis-safe
 contract FundingHolder is Ownable {
 
     // The WePiggyToken !
-    WePiggyToken public piggy;
+    MintToken public piggy;
 
-    constructor(WePiggyToken _piggy) public {
+    constructor(MintToken _piggy) public {
         piggy = _piggy;
     }
 
@@ -22,9 +22,6 @@ contract FundingHolder is Ownable {
         } else {
             piggy.transfer(_to, _amount);
         }
-    }
-
-    function receive() external payable {
     }
 
 }

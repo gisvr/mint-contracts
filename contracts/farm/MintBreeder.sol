@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.6.12;
 
-import "@nomiclabs/buidler/console.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/EnumerableSet.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "../token/WePiggyToken.sol";
+import "../token/MintToken.sol";
 
 // Copied and modified from sushiswap code:
 // https://github.com/sushiswap/sushiswap/blob/master/contracts/MasterChef.sol
@@ -18,8 +17,8 @@ interface IMigrator {
     function migrate(IERC20 lpToken) external returns (IERC20, uint);
 }
 
-// PiggyBreeder is the master of PiggyToken.
-contract PiggyBreeder is Ownable {
+// MintBreeder is the master of MintToken.
+contract MintBreeder is Ownable {
 
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
@@ -35,15 +34,15 @@ contract PiggyBreeder is Ownable {
     // Info of each pool.
     struct PoolInfo {
         IERC20 lpToken;           // Address of LP token contract.
-        uint256 allocPoint;       // How many allocation points assigned to this pool. PiggyTokens to distribute per block.
-        uint256 lastRewardBlock;  // Last block number that PiggyTokens distribution occurs.
-        uint256 accPiggyPerShare; // Accumulated PiggyTokens per share, times 1e12. See below.
+        uint256 allocPoint;       // How many allocation points assigned to this pool. MintTokens to distribute per block.
+        uint256 lastRewardBlock;  // Last block number that MintTokens distribution occurs.
+        uint256 accMintPerShare; // Accumulated MintTokens per share, times 1e12. See below.
         uint256 totalDeposit;       // Accumulated deposit tokens.
         IMigrator migrator;
     }
 
-    // The WePiggyToken !
-    WePiggyToken public piggy;
+    // The WeMintToken !
+    MintToken public mint;
 
     // Dev address.
     address public devAddr;
@@ -51,8 +50,8 @@ contract PiggyBreeder is Ownable {
     // Percentage of developers mining
     uint256 public devMiningRate;
 
-    // PIGGY tokens created per block.
-    uint256 public piggyPerBlock;
+    // Mint tokens created per block.
+    uint256 public mintPerBlock;
 
     // The block number when WPC mining starts.
     uint256 public startBlock;
@@ -80,21 +79,22 @@ contract PiggyBreeder is Ownable {
     event Claim(address indexed user, uint256 indexed pid);
     event UnStake(address indexed user, uint256 indexed pid, uint256 amount);
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
-    event ReplaceMigrate(address indexed user, uint256 amount);
+    event ReplaceMigrate(address indexed user, uint256 pid, uint256 amount);
+    event Migrate(address indexed user, uint256 pid, uint256 targetPid, uint256 amount);
 
     constructor (
-        WePiggyToken _piggy,
+        MintToken _mint,
         address _devAddr,
-        uint256 _piggyPerBlock,
+        uint256 _mintPerBlock,
         uint256 _startBlock,
         uint256 _enableClaimBlock,
         uint256 _reduceIntervalBlock,
         uint256 _reduceRate,
         uint256 _devMiningRate
     ) public {
-        piggy = _piggy;
+        mint = _mint;
         devAddr = _devAddr;
-        piggyPerBlock = _piggyPerBlock;
+        mintPerBlock = _mintPerBlock;
         startBlock = _startBlock;
         reduceIntervalBlock = _reduceIntervalBlock;
         reduceRate = _reduceRate;
@@ -135,7 +135,7 @@ contract PiggyBreeder is Ownable {
         reduceIntervalBlock = _reduceIntervalBlock;
     }
 
-    // Update the given pool's PIGGY allocation point. Can only be called by the owner.
+    // Update the given pool's Mint allocation point. Can only be called by the owner.
     function setAllocPoint(uint256 _pid, uint256 _allocPoint, bool _withUpdate) public onlyOwner {
         if (_withUpdate) {
             massUpdatePools();
@@ -174,11 +174,13 @@ contract PiggyBreeder is Ownable {
         require(bal == newLpToken.balanceOf(address(this)), "migrate: bad");
         pool.lpToken = newLpToken;
 
-        emit ReplaceMigrate(address(migrator), bal);
+        emit ReplaceMigrate(address(migrator), _pid, bal);
     }
 
     // Move lp token data to another lp contract.
-    function migrate(uint256 _pid, uint256 _targetPid) public onlyOwner {
+    function migrate(uint256 _pid, uint256 _targetPid, uint256 begin) public onlyOwner {
+
+        require(begin < userAddresses[_pid].length, "migrate: begin error");
 
         PoolInfo storage pool = poolInfo[_pid];
         IMigrator migrator = pool.migrator;
@@ -190,45 +192,56 @@ contract PiggyBreeder is Ownable {
         (IERC20 newLpToken, uint mintBal) = migrator.migrate(lpToken);
 
         PoolInfo storage targetPool = poolInfo[_targetPid];
-        IERC20 targetToken = targetPool.lpToken;
-        require(address(targetToken) == address(newLpToken), "migrate: bad");
+        require(address(targetPool.lpToken) == address(newLpToken), "migrate: bad");
 
         uint rate = mintBal.mul(1e12).div(bal);
-        for (uint i = 0; i < userAddresses[_pid].length; i++) {
+        for (uint i = begin; i < begin.add(20); i++) {
 
-            updatePool(_targetPid);
+            if (i < userAddresses[_pid].length) {
+                updatePool(_targetPid);
 
-            address addr = userAddresses[_pid][i];
-            UserInfo storage user = userInfo[_pid][addr];
-            UserInfo storage tUser = userInfo[_targetPid][addr];
+                address addr = userAddresses[_pid][i];
+                UserInfo storage user = userInfo[_pid][addr];
+                UserInfo storage tUser = userInfo[_targetPid][addr];
 
-            uint tmp = user.amount.mul(rate).div(1e12);
+                if (user.amount <= 0) {
+                    continue;
+                }
 
-            tUser.amount = tUser.amount.add(tmp);
-            targetPool.totalDeposit = targetPool.totalDeposit.add(tmp);
-            pool.totalDeposit = pool.totalDeposit.sub(user.amount);
-            user.rewardDebt = 0;
-            user.amount = 0;
+                uint tmp = user.amount.mul(rate).div(1e12);
+
+                tUser.amount = tUser.amount.add(tmp);
+                tUser.rewardDebt = tUser.rewardDebt.add(user.rewardDebt.mul(rate).div(1e12));
+                targetPool.totalDeposit = targetPool.totalDeposit.add(tmp);
+                pool.totalDeposit = pool.totalDeposit.sub(user.amount);
+                user.rewardDebt = 0;
+                user.amount = 0;
+            } else {
+                break;
+            }
+
         }
+
+        emit Migrate(address(migrator), _pid, _targetPid, bal);
 
     }
 
-    // Safe piggy transfer function, just in case if rounding error causes pool to not have enough PiggyToken.
-    function safePiggyTransfer(address _to, uint256 _amount) internal {
-        uint256 piggyBal = piggy.balanceOf(address(this));
-        if (_amount > piggyBal) {
-            piggy.transfer(_to, piggyBal);
+    // Safe mint transfer function, just in case if rounding error causes pool to not have enough MintToken.
+    function safeMintTransfer(address _to, uint256 _amount) internal {
+        uint256 mintBal = mint.balanceOf(address(this));
+        if (_amount > mintBal) {
+            mint.transfer(_to, mintBal);
         } else {
-            piggy.transfer(_to, _amount);
+            mint.transfer(_to, _amount);
         }
     }
 
-    // Return piggyPerBlock, baseOn power  --> piggyPerBlock * (reduceRate/100)^power
-    function getPiggyPerBlock(uint256 _power) public view returns (uint256){
+    // Return mintPerBlock, baseOn power  --> mintPerBlock * (reduceRate/100)^power
+    function getMintPerBlock(uint256 _power) public view returns (uint256){
         if (_power == 0) {
-            return piggyPerBlock;
+            return mintPerBlock;
         } else {
-            uint256 z = piggyPerBlock;
+            uint256 z = mintPerBlock;
             for (uint256 i = 0; i < _power; i++) {
                 z = z.mul(reduceRate).div(1000);
             }
@@ -241,8 +254,8 @@ contract PiggyBreeder is Ownable {
         return _to.sub(_from);
     }
 
-    // View function to see all pending PiggyToken on frontend.
-    function allPendingPiggy(address _user) external view returns (uint256){
+    // View function to see all pending MintToken on frontend.
+    function allPendingMint(address _user) external view returns (uint256){
         uint sum = 0;
         for (uint i = 0; i < poolInfo.length; i++) {
             sum = sum.add(_pending(i, _user));
@@ -250,8 +263,8 @@ contract PiggyBreeder is Ownable {
         return sum;
     }
 
-    // View function to see pending PiggyToken on frontend.
-    function pendingPiggy(uint256 _pid, address _user) external view returns (uint256) {
+    // View function to see pending MintToken on frontend.
+    function pendingMint(uint256 _pid, address _user) external view returns (uint256) {
         return _pending(_pid, _user);
     }
 
@@ -260,21 +273,21 @@ contract PiggyBreeder is Ownable {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][_user];
 
-        uint256 accPiggyPerShare = pool.accPiggyPerShare;
+        uint256 accMintPerShare = pool.accMintPerShare;
         uint256 lpSupply = pool.lpToken.balanceOf(address(this));
 
         if (block.number > pool.lastRewardBlock && lpSupply != 0) {
-            // pending piggy reward
-            uint256 piggyReward = 0;
+            // pending mint reward
+            uint256 mintReward = 0;
             uint256 lastRewardBlockPower = pool.lastRewardBlock.sub(startBlock).div(reduceIntervalBlock);
             uint256 blockNumberPower = block.number.sub(startBlock).div(reduceIntervalBlock);
 
-            // get piggyReward from pool.lastRewardBlock to block.number.
-            // different interval different multiplier and piggyPerBlock, sum piggyReward
+            // get mintReward from pool.lastRewardBlock to block.number.
+            // different interval different multiplier and mintPerBlock, sum mintReward
             if (lastRewardBlockPower == blockNumberPower) {
                 uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-                piggyReward = piggyReward.add(multiplier.mul(getPiggyPerBlock(blockNumberPower)).mul(pool.allocPoint).div(totalAllocPoint));
-            } else if (lastRewardBlockPower < blockNumberPower) {
+                mintReward = mintReward.add(multiplier.mul(getMintPerBlock(blockNumberPower)).mul(pool.allocPoint).div(totalAllocPoint));
+            } else {
                 for (uint256 i = lastRewardBlockPower; i <= blockNumberPower; i++) {
                     uint256 multiplier = 0;
                     if (i == lastRewardBlockPower) {
@@ -284,26 +297,24 @@ contract PiggyBreeder is Ownable {
                     } else {
                         multiplier = reduceIntervalBlock;
                     }
-                    piggyReward = piggyReward.add(multiplier.mul(getPiggyPerBlock(i)).mul(pool.allocPoint).div(totalAllocPoint));
+                    mintReward = mintReward.add(multiplier.mul(getMintPerBlock(i)).mul(pool.allocPoint).div(totalAllocPoint));
                 }
             }
 
-            accPiggyPerShare = accPiggyPerShare.add(piggyReward.mul(1e12).div(lpSupply));
+            accMintPerShare = accMintPerShare.add(mintReward.mul(1e12).div(lpSupply));
         }
 
         // get pending value
-        uint256 pendingValue = user.amount.mul(accPiggyPerShare).div(1e12).sub(user.rewardDebt);
+        uint256 pendingValue = user.amount.mul(accMintPerShare).div(1e12).sub(user.rewardDebt);
 
         // if enableClaimBlock after block.number, return pendingValue + user.pendingReward.
         // else return pendingValue.
         if (enableClaimBlock > block.number) {
             return pendingValue.add(user.pendingReward);
-        } else {
-            if (user.pendingReward > 0 && user.unStakeBeforeEnableClaim) {
-                return pendingValue.add(user.pendingReward);
-            }
-            return pendingValue;
+        } else if (user.pendingReward > 0 && user.unStakeBeforeEnableClaim) {
+            return pendingValue.add(user.pendingReward);
         }
+        return pendingValue;
     }
 
     // Update reward variables for all pools. Be careful of gas spending!
@@ -328,17 +339,17 @@ contract PiggyBreeder is Ownable {
             return;
         }
 
-        // get piggyReward. piggyReward base on current PiggyPerBlock.
+        // get mintReward. mintReward base on current MintPerBlock.
         uint256 power = block.number.sub(startBlock).div(reduceIntervalBlock);
         uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-        uint256 piggyReward = multiplier.mul(getPiggyPerBlock(power)).mul(pool.allocPoint).div(totalAllocPoint);
+        uint256 mintReward = multiplier.mul(getMintPerBlock(power)).mul(pool.allocPoint).div(totalAllocPoint);
 
         // mint
-        piggy.mint(devAddr, piggyReward.mul(devMiningRate).div(100));
-        piggy.mint(address(this), piggyReward);
+        mint.mint(devAddr, mintReward.mul(devMiningRate).div(100));
+        mint.mint(address(this), mintReward);
 
         //update pool
-        pool.accPiggyPerShare = pool.accPiggyPerShare.add(piggyReward.mul(1e12).div(lpSupply));
+        pool.accMintPerShare = pool.accMintPerShare.add(mintReward.mul(1e12).div(lpSupply));
         pool.lastRewardBlock = block.number;
 
     }
@@ -358,35 +369,35 @@ contract PiggyBreeder is Ownable {
 
         // add poolInfo
         poolInfo.push(PoolInfo({
-            lpToken : _lpToken,
-            allocPoint : _allocPoint,
-            lastRewardBlock : lastRewardBlock,
-            accPiggyPerShare : 0,
-            totalDeposit : 0,
-            migrator : _migrator
-            }));
+        lpToken : _lpToken,
+        allocPoint : _allocPoint,
+        lastRewardBlock : lastRewardBlock,
+        accMintPerShare : 0,
+        totalDeposit : 0,
+        migrator : _migrator
+        }));
     }
 
-    // Stake LP tokens to PiggyBreeder for WPC allocation.
+    // Stake LP tokens to MintBreeder for MC allocation.
     function stake(uint256 _pid, uint256 _amount) public {
+
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
-        console.log("stake");
 
         //update poolInfo by pid
         updatePool(_pid);
 
-        // if user's amount bigger than zero, transfer PiggyToken to user.
+        // if user's amount bigger than zero, transfer MintToken to user.
         if (user.amount > 0) {
-            uint256 pending = user.amount.mul(pool.accPiggyPerShare).div(1e12).sub(user.rewardDebt);
+            uint256 pending = user.amount.mul(pool.accMintPerShare).div(1e12).sub(user.rewardDebt);
             if (pending > 0) {
                 // if enableClaimBlock after block.number, save the pending to user.pendingReward.
                 if (enableClaimBlock <= block.number) {
-                    safePiggyTransfer(msg.sender, pending);
+                    safeMintTransfer(msg.sender, pending);
 
                     // transfer user.pendingReward if user.pendingReward > 0, and update user.pendingReward to 0
                     if (user.pendingReward > 0) {
-                        safePiggyTransfer(msg.sender, user.pendingReward);
+                        safeMintTransfer(msg.sender, user.pendingReward);
                         user.pendingReward = 0;
                     }
                 } else {
@@ -402,13 +413,13 @@ contract PiggyBreeder is Ownable {
             userAddresses[_pid].push(msg.sender);
         }
 
-        user.rewardDebt = user.amount.mul(pool.accPiggyPerShare).div(1e12);
+        user.rewardDebt = user.amount.mul(pool.accMintPerShare).div(1e12);
 
         emit Stake(msg.sender, _pid, _amount);
 
     }
 
-    // UnStake LP tokens from PiggyBreeder.
+    // UnStake LP tokens from MintBreeder.
     function unStake(uint256 _pid, uint256 _amount) public {
 
         PoolInfo storage pool = poolInfo[_pid];
@@ -419,16 +430,16 @@ contract PiggyBreeder is Ownable {
         //update poolInfo by pid
         updatePool(_pid);
 
-        //transfer PiggyToken to user.
-        uint256 pending = user.amount.mul(pool.accPiggyPerShare).div(1e12).sub(user.rewardDebt);
+        //transfer MintToken to user.
+        uint256 pending = user.amount.mul(pool.accMintPerShare).div(1e12).sub(user.rewardDebt);
         if (pending > 0) {
             // if enableClaimBlock after block.number, save the pending to user.pendingReward.
             if (enableClaimBlock <= block.number) {
-                safePiggyTransfer(msg.sender, pending);
+                safeMintTransfer(msg.sender, pending);
 
                 // transfer user.pendingReward if user.pendingReward > 0, and update user.pendingReward to 0
                 if (user.pendingReward > 0) {
-                    safePiggyTransfer(msg.sender, user.pendingReward);
+                    safeMintTransfer(msg.sender, user.pendingReward);
                     user.pendingReward = 0;
                 }
             } else {
@@ -445,7 +456,7 @@ contract PiggyBreeder is Ownable {
             pool.totalDeposit = pool.totalDeposit.sub(_amount);
         }
 
-        user.rewardDebt = user.amount.mul(pool.accPiggyPerShare).div(1e12);
+        user.rewardDebt = user.amount.mul(pool.accMintPerShare).div(1e12);
 
         emit UnStake(msg.sender, _pid, _amount);
     }
@@ -461,22 +472,22 @@ contract PiggyBreeder is Ownable {
         //update poolInfo by pid
         updatePool(_pid);
 
-        // if user's amount bigger than zero, transfer PiggyToken to user.
+        // if user's amount bigger than zero, transfer MintToken to user.
         if (user.amount > 0) {
-            uint256 pending = user.amount.mul(pool.accPiggyPerShare).div(1e12).sub(user.rewardDebt);
+            uint256 pending = user.amount.mul(pool.accMintPerShare).div(1e12).sub(user.rewardDebt);
             if (pending > 0) {
-                safePiggyTransfer(msg.sender, pending);
+                safeMintTransfer(msg.sender, pending);
             }
         }
 
         // transfer user.pendingReward if user.pendingReward > 0, and update user.pendingReward to 0
         if (user.pendingReward > 0) {
-            safePiggyTransfer(msg.sender, user.pendingReward);
+            safeMintTransfer(msg.sender, user.pendingReward);
             user.pendingReward = 0;
         }
 
         // update user info
-        user.rewardDebt = user.amount.mul(pool.accPiggyPerShare).div(1e12);
+        user.rewardDebt = user.amount.mul(pool.accMintPerShare).div(1e12);
 
         emit Claim(msg.sender, _pid);
     }

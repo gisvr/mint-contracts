@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.6.12;
 
-import "@nomiclabs/buidler/console.sol";
+
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 // Copied and modified from SUSHI code:
 // https://github.com/sushiswap/sushiswap/blob/master/contracts/SushiToken.sol
-// WePiggyToken with Governance.
-contract WePiggyToken is ERC20, AccessControl {
+// MintToken with Governance.
+contract MintToken is ERC20, AccessControl {
 
     // Create a new role identifier for the minter role
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
-    constructor() public ERC20("WePiggy Coin", "WPC") {
+    constructor() public ERC20("Mint Coin", "MC") {
 
         // Grant the contract deployer the default admin role: it will be able
         // to grant and revoke any roles
@@ -22,7 +22,7 @@ contract WePiggyToken is ERC20, AccessControl {
 
     /// @notice Creates `_amount` token to `_to`.Must only be called by the minter role.
     function mint(address _to, uint256 _amount) public {
-        console.log("MINTER_ROLE",msg.sender);
+
         // Check that the calling account has the minter role
         require(hasRole(MINTER_ROLE, msg.sender), "Caller is not a minter");
 
@@ -30,6 +30,12 @@ contract WePiggyToken is ERC20, AccessControl {
         _moveDelegates(address(0), _delegates[_to], _amount);
     }
 
+    //  transfers delegate authority when sending a token.
+    // https://medium.com/bulldax-finance/sushiswap-delegation-double-spending-bug-5adcc7b3830f
+    function _transfer(address sender, address recipient, uint256 amount) internal override virtual {
+        super._transfer(sender, recipient, amount);
+        _moveDelegates(_delegates[sender], _delegates[recipient], amount);
+    }
 
     // Copied and modified from YAM code:
     // https://github.com/yam-finance/yam-protocol/blob/master/contracts/token/YAMGovernanceStorage.sol
@@ -133,9 +139,9 @@ contract WePiggyToken is ERC20, AccessControl {
         );
 
         address signatory = ecrecover(digest, v, r, s);
-        require(signatory != address(0), "WePiggyToken::delegateBySig: invalid signature");
-        require(nonce == nonces[signatory]++, "WePiggyToken::delegateBySig: invalid nonce");
-        require(now <= expiry, "WePiggyToken::delegateBySig: signature expired");
+        require(signatory != address(0), "MintToken::delegateBySig: invalid signature");
+        require(nonce == nonces[signatory]++, "MintToken::delegateBySig: invalid nonce");
+        require(now <= expiry, "MintToken::delegateBySig: signature expired");
         return _delegate(signatory, delegatee);
     }
 
@@ -203,7 +209,7 @@ contract WePiggyToken is ERC20, AccessControl {
     internal
     {
         address currentDelegate = _delegates[delegator];
-        // balance of underlying WePiggyTokens (not scaled);
+        // balance of underlying MintToken (not scaled);
         uint256 delegatorBalance = balanceOf(delegator);
 
         _delegates[delegator] = delegatee;
@@ -241,7 +247,7 @@ contract WePiggyToken is ERC20, AccessControl {
     )
     internal
     {
-        uint32 blockNumber = safe32(block.number, "WePiggyToken::_writeCheckpoint: block number exceeds 32 bits");
+        uint32 blockNumber = safe32(block.number, "MintToken::_writeCheckpoint: block number exceeds 32 bits");
 
         if (nCheckpoints > 0 && checkpoints[delegatee][nCheckpoints - 1].fromBlock == blockNumber) {
             checkpoints[delegatee][nCheckpoints - 1].votes = newVotes;

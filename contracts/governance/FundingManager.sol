@@ -3,7 +3,7 @@ pragma solidity 0.6.12;
 
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "../token/WePiggyToken.sol";
+import "../token/MintToken.sol";
 
 contract FundingManager is Ownable {
 
@@ -16,12 +16,12 @@ contract FundingManager is Ownable {
     }
 
     // The WePiggyToken !
-    WePiggyToken public piggy;
+    MintToken public piggy;
 
     // Info of each funding.
     FundingHolderInfo[] public fundingHolders;
 
-    constructor(WePiggyToken _piggy) public {
+    constructor(MintToken _piggy) public {
         piggy = _piggy;
     }
 
@@ -40,10 +40,10 @@ contract FundingManager is Ownable {
     function addFunding(string memory _name, address _addr, uint256 _ratio) public onlyOwner {
 
         fundingHolders.push(FundingHolderInfo({
-            name : _name,
-            addr : _addr,
-            ratio : _ratio
-            }));
+        name : _name,
+        addr : _addr,
+        ratio : _ratio
+        }));
 
     }
 
@@ -76,7 +76,4 @@ contract FundingManager is Ownable {
 
     }
 
-    function receive() external payable {
-
-    }
 }

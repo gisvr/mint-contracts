@@ -1,5 +1,5 @@
 let network = "ropsten" //   rinkeby
-let {projectId, privateKeys} = require("../../../defi/secrets")
+let {projectId, privateKeys} = require("/Users/liyu/github/defi/secrets")
 
 let host = `https://${network}.infura.io/v3/${projectId}`
 
@@ -26,14 +26,15 @@ const loader = setupLoader({
     defaultGasPrice: 20e9
 }).truffle;
 
-const PiggyBreeder = loader.fromArtifact('PiggyBreeder');
-const WePiggyToken = loader.fromArtifact('WePiggyToken');
+const PiggyBreeder = loader.fromArtifact('MintBreeder');
+const WePiggyToken = loader.fromArtifact('MintToken');
 // const AToken = loader.fromArtifact('AToken');
 const ERC20 = loader.fromArtifact("ERC20")
 
 module.exports = {
     async getArttifact() {
         const web3 = new Web3(host)
+
         // web3Provider = new Web3.providers.HttpProvider(host); //web3.providers.HttpProvider //
 
         let accounts = []
