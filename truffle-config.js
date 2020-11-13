@@ -1,6 +1,6 @@
 const HDWalletProvider = require("@truffle/hdwallet-provider");
 
-const {projectId,projectId1, privateKeys, etherscanKey,adminKey} = require('../secrets.json');
+const {projectId,projectId1, privateKeys, etherscanKey,adminKey} = require("/Users/liyu/github/defi/secrets");
 
 // console.log("etherscanKey",etherscanKey)
 
