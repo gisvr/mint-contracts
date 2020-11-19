@@ -476,6 +476,11 @@ describe('MintBreeder', function () {
             expect(await this.mintToken.totalSupply()).to.be.bignumber.equal('2777220000000000000');
 
             await this.mintBreeder.claim(0, {from: alice})//Claim
+            let userInfo = await this.mintBreeder.userInfo(0,alice)
+            console.log(userInfo.amount.toString())
+            console.log(userInfo.pendingReward.toString())
+            console.log(userInfo.rewardDebt.toString())
+
 
             expect(await this.mintBreeder.pendingMint(0, alice)).to.be.bignumber.equal('0')
             expect(await this.mintToken.balanceOf(alice)).to.be.bignumber.equal('12965032989000000000');
