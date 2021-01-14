@@ -62,6 +62,41 @@ truffle run verify MintBreeder --network ropsten
 truffle-flattener contracts/token/MintToken.sol > flattener/MintToken.sol
 truffle-flattener contracts/farm/MintBreeder.sol > flattener/MintBreeder.sol
 ```
+
+### Mintbreeder  挖矿合约步骤解析
+
+一、存入: stake,
+``` js
+await aToken.allowance(alice, mintBreeder.address);
+await aToken.approve( mintBreeder.address, '1000', {from: alice});
+await mintBreeder.stake(0, '100', {from: alice});
+```
+
+二、收回 unStake
+``` js
+Let userInfo = await mintBreeder.userInfo(0,alice)
+userInfo.amount // 用户抵押数量
+await  mintBreeder.unstake(0, "2000", {from: alice})
+```
+ 
+三、收获Claim
+``` js
+// 1   需要块高大于 enableClaimBlock
+Let enableClaimBlock = await  mintBreeder.enableClaimBlock()
+enableClaimBlock <= blockNumber
+
+ 
+// 2   查询当前用户挖矿数量计算 
+let user = await  mintBreeder.userInfo(0,alice)
+Let pool = await  mintBreeder.poolInfo(0)
+let reward = user.amount.mul(pool.accMintPerShare).div(1e12).sub(user.rewardDebt);
+Let  claimAmount =   reward + user. pendingReward
+
+await  mintBreeder.claim(0, {from: alice}) 
+
+//3.  查看收获的MC代币
+const aliceBal = await mintToken.balanceOf(alice);
+```
  
  
 
